@@ -1,4 +1,4 @@
-export const maxDuration = 60;
+export const runtime = 'edge';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { findSimilarTopics } from '@/lib/gemini';

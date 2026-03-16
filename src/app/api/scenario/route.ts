@@ -1,5 +1,5 @@
-// Vercel 서버리스 함수 타임아웃 (무료: 최대 60초)
-export const maxDuration = 60;
+// Edge Runtime: Vercel 무료 플랜에서 30초 타임아웃 (서버리스는 10초 제한)
+export const runtime = 'edge';
 
 import { NextRequest, NextResponse } from 'next/server';
 import {
