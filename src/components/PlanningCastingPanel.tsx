@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { TopicCandidate, EpisodePlan, CastMember, CastPosition, LOADING_MESSAGES } from '@/lib/types';
+import { clientGeneratePlan } from '@/lib/geminiClient';
 import CountryBallIcon from '@/components/CountryBallIcon';
 
 // ─── Loading spinner ───────────────────────────────────────────────────────
@@ -377,22 +378,11 @@ export default function PlanningCastingPanel({
         .map((l) => l.trim())
         .filter(Boolean);
 
-      const res = await fetch('/api/scenario', {
-        method: 'POST',
-        headers: buildHeaders(),
-        body: JSON.stringify({
-          step: 'plan',
-          title: topic.title,
-          facts: parsedFacts.length > 0 ? parsedFacts : topic.keyFacts,
-        }),
-      });
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err?.error ?? `서버 오류 (${res.status})`);
-      }
-
-      const data: EpisodePlan = await res.json();
+      // 브라우저에서 직접 Gemini API 호출 (서버 타임아웃 우회)
+      const data = await clientGeneratePlan(
+        topic.title,
+        parsedFacts.length > 0 ? parsedFacts : topic.keyFacts
+      );
       setPlan(data);
     } catch (e) {
       const msg = e instanceof Error ? e.message : '알 수 없는 오류';

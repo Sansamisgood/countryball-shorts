@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { EpisodePlan, TopicCandidate, ScriptScene, LOADING_MESSAGES } from '@/lib/types';
+import { clientGenerateDraft, clientFinalizeScript } from '@/lib/geminiClient';
 
 interface ScriptWritingPanelProps {
   selectedTopic: TopicCandidate | null;
@@ -87,19 +88,8 @@ export default function ScriptWritingPanel({
     startLoadingMessages();
 
     try {
-      const res = await fetch('/api/scenario', {
-        method: 'POST',
-        headers: buildHeaders(),
-        body: JSON.stringify({ step: 'draft', plan: episodePlan }),
-      });
-
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error ?? `서버 오류 (${res.status})`);
-      }
-
-      const data = await res.json();
-      const draft = data.rawScript ?? '';
+      // 브라우저에서 직접 Gemini API 호출 (서버 타임아웃 우회)
+      const draft = await clientGenerateDraft(episodePlan);
       setAiDraft(draft);
       setRawScript(draft);
       setPhase('draft-ready');
@@ -127,18 +117,11 @@ export default function ScriptWritingPanel({
     startLoadingMessages();
 
     try {
-      const res = await fetch('/api/scenario', {
-        method: 'POST',
-        headers: buildHeaders(),
-        body: JSON.stringify({ step: 'finalize', rawScript, plan: episodePlan }),
-      });
-
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error ?? `서버 오류 (${res.status})`);
+      // 브라우저에서 직접 Gemini API 호출 (서버 타임아웃 우회)
+      const scenes = await clientFinalizeScript(rawScript, episodePlan);
+      if (!scenes || scenes.length === 0) {
+        throw new Error('스토리보드 변환 결과가 비어있습니다. 다시 시도해주세요.');
       }
-
-      const scenes: ScriptScene[] = await res.json();
       setPhase('done');
       onScriptFinalized(scenes);
     } catch (err) {
