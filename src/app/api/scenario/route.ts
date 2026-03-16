@@ -1,3 +1,6 @@
+// Vercel 서버리스 함수 타임아웃 (무료: 최대 60초)
+export const maxDuration = 60;
+
 import { NextRequest, NextResponse } from 'next/server';
 import {
   generateEpisodePlan,

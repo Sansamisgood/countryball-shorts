@@ -1,3 +1,5 @@
+export const maxDuration = 60;
+
 /**
  * /api/tts-gemini
  * Gemini 2.5 Flash TTS 음성 합성 API 라우트
