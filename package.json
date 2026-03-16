@@ -1,0 +1,31 @@
+{
+  "name": "countryball-shorts",
+  "version": "1.0.0",
+  "description": "국뽕 컨트리볼 쇼츠 메이커 AI",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@google/genai": "^1.45.0",
+    "@google/generative-ai": "^0.24.1",
+    "@tailwindcss/postcss": "^4.2.1",
+    "@types/jszip": "^3.4.0",
+    "@types/node": "^25.5.0",
+    "@types/react": "^19.2.14",
+    "cheerio": "^1.2.0",
+    "edge-tts": "^1.0.1",
+    "jszip": "^3.10.1",
+    "next": "^16.1.6",
+    "postcss": "^8.5.8",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "rss-parser": "^3.13.0",
+    "tailwindcss": "^4.2.1",
+    "typescript": "^5.9.3"
+  }
+}
