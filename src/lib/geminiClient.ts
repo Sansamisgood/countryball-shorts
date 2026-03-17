@@ -7,7 +7,7 @@
  */
 
 import { GoogleGenerativeAI, GenerationConfig } from '@google/generative-ai';
-import { EpisodePlan, ScriptScene } from './types';
+import { EpisodePlan, ScriptScene, TopicCandidate, YouTubeSEO } from './types';
 
 function getApiKey(): string {
   const key = typeof window !== 'undefined' ? localStorage.getItem('gemini_api_key') : null;
@@ -259,5 +259,222 @@ ${facts.map((f, i) => (i + 1) + '. ' + f).join('\n')}
     actStructure: [],
     comedyBeats: [],
     koreaWinMoment: '',
+  });
+}
+
+// ===== findTopicCandidates (브라우저 — Google Search grounding) =====
+
+export async function clientFindTopics(
+  page: number,
+  keyword?: string,
+  usedTopics: string[] = []
+): Promise<TopicCandidate[]> {
+  const apiKey = getApiKey();
+
+  const isFirstPage = page === 1;
+  const itemCount = isFirstPage ? 30 : 25;
+  const blacklist =
+    usedTopics.length > 0
+      ? '\n\n🚫 이미 사용한 소재 (절대 중복 금지):\n' + usedTopics.map((t) => '- ' + t).join('\n')
+      : '';
+
+  let phasePrompt: string;
+
+  if (keyword) {
+    phasePrompt = '"' + keyword + '" 키워드로 깊게 파고들어서 컨트리볼 숏츠 소재 ' + itemCount + '개를 찾아주세요.';
+  } else {
+    const phaseNumber = ((page - 1) % 4) + 1;
+    const phases: Record<number, string> = {
+      1: '실시간 핫 트렌드에서 컨트리볼 숏츠 소재 ' + itemCount + '개를 찾아주세요. 훈훈/호기심/공감/국뽕 균형.',
+      2: '국내 커뮤니티 해외반응에서 컨트리볼 숏츠 소재 ' + itemCount + '개를 찾아주세요.',
+      3: 'Reddit, 해외 포럼에서 한국에 대한 외국인 반응 소재 ' + itemCount + '개를 찾아주세요.',
+      4: '밀리터리/테크/미스터리 틈새 분야에서 한국 관련 소재 ' + itemCount + '개를 찾아주세요.',
+    };
+    phasePrompt = phases[phaseNumber] ?? phases[1];
+  }
+
+  const prompt = '당신은 한국 컨트리볼 숏츠 유튜브 채널의 소재 발굴 전문가입니다.\n구글 검색으로 최신 정보를 바탕으로 소재를 찾아주세요.\n\n' +
+    phasePrompt + blacklist +
+    '\n\n응답은 반드시 JSON 배열로만 출력 (마크다운 없이):\n' +
+    '[{"title":"소재 제목","oneLiner":"한 줄 설명","keyFacts":["팩트1","팩트2"],"countriesInvolved":["KR","US"],"koreaAngle":"한국 각도","humorPotential":"유머 포인트","sourceHint":"출처"}]';
+
+  // Google Search grounding은 새 SDK(@google/genai) 필요
+  const { GoogleGenAI } = await import('@google/genai');
+  const genAI = new GoogleGenAI({ apiKey });
+
+  const resp = await genAI.models.generateContent({
+    model: 'gemini-2.5-flash',
+    contents: prompt,
+    config: {
+      tools: [{ googleSearch: {} }],
+    },
+  });
+
+  const text = resp.text ?? '';
+  return parseJsonSafe<TopicCandidate[]>(text, []);
+}
+
+// ===== findSimilarTopics (브라우저) =====
+
+export async function clientFindSimilarTopics(
+  sourceTopic: string,
+  usedTopics: string[] = []
+): Promise<TopicCandidate[]> {
+  const ai = getAI();
+
+  const blacklist =
+    usedTopics.length > 0
+      ? '\n\n🚫 이미 사용한 소재:\n' + usedTopics.map((t) => '- ' + t).join('\n')
+      : '';
+
+  const prompt = '원본 소재: "' + sourceTopic + '"\n\n' +
+    '이 소재와 동일한 바이럴 패턴의 유사 소재 6개를 발굴해주세요.' + blacklist +
+    '\n\n응답은 JSON 배열로만 (마크다운 없이):\n' +
+    '[{"title":"소재 제목","oneLiner":"한 줄 설명","keyFacts":["팩트1","팩트2"],"countriesInvolved":["KR","US"],"koreaAngle":"한국 각도","humorPotential":"유머 포인트","sourceHint":"출처"}]';
+
+  const model = ai.getGenerativeModel({ model: 'gemini-2.5-flash' });
+  const result = await model.generateContent(prompt);
+  const text = result.response.text();
+
+  return parseJsonSafe<TopicCandidate[]>(text, []);
+}
+
+// ===== generateSceneImage (브라우저) =====
+
+export async function clientGenerateSceneImage(
+  scene: ScriptScene,
+  characterDescription: string
+): Promise<string> {
+  const apiKey = getApiKey();
+  const { GoogleGenAI } = await import('@google/genai');
+  const genAI = new GoogleGenAI({ apiKey });
+
+  const primaryLine = scene.dialogue[0];
+  const speaker = primaryLine?.speaker ?? 'KR';
+  const emotion = primaryLine?.emotion ?? 'NEUTRAL';
+
+  const EMOTION_EYES: Record<string, string> = {
+    HAPPY: 'eyes squinting happily (^^)',
+    ANGRY: 'eyes angled inward V-shape, angry',
+    SAD: 'eyes drooping downward, teardrop',
+    SURPRISED: 'HUGE wide circle eyes, tiny pupils',
+    NEUTRAL: 'simple calm white oval eyes',
+  };
+
+  const eyeDesc = EMOTION_EYES[emotion] ?? EMOTION_EYES.NEUTRAL;
+
+  const prompt = 'Draw a classic Polandball meme scene. 9:16 vertical.\n\n' +
+    'RULES: Characters are SPHERES with flag patterns. Eyes are ONLY white ovals with black dots. ' +
+    'NO arms, NO legs, NO hands, NO mouth. Thick black outlines. Flat meme colors. Simple background.\n\n' +
+    'Main character: ' + speaker + ' countryball, ' + eyeDesc + '\n' +
+    'Scene: ' + (scene.setting ?? '') + '\n' +
+    'Characters: ' + characterDescription + '\n\n' +
+    'NO TEXT, NO WORDS, NO NUMBERS.';
+
+  const IMAGE_MODELS = ['gemini-2.5-flash-image', 'gemini-3.1-flash-image-preview'];
+
+  for (const model of IMAGE_MODELS) {
+    try {
+      const response = await genAI.models.generateContent({
+        model,
+        contents: prompt,
+        config: { responseModalities: ['TEXT', 'IMAGE'] },
+      });
+
+      const parts = response.candidates?.[0]?.content?.parts ?? [];
+      for (const part of parts) {
+        if (part.inlineData?.data) {
+          const mime = part.inlineData.mimeType ?? 'image/png';
+          return 'data:' + mime + ';base64,' + part.inlineData.data;
+        }
+      }
+    } catch (err) {
+      console.warn('[clientGenerateSceneImage] ' + model + ' failed:', err);
+    }
+  }
+
+  throw new Error('이미지 생성 실패: 모든 모델에서 이미지를 받지 못했습니다.');
+}
+
+// ===== generateCharacterBaseImage (브라우저) =====
+
+export async function clientGenerateCharacterImage(
+  masterPrompt: string
+): Promise<string> {
+  const apiKey = getApiKey();
+  const { GoogleGenAI } = await import('@google/genai');
+  const genAI = new GoogleGenAI({ apiKey });
+
+  const prompt = 'Draw a classic Polandball character. Simple meme style.\n\n' +
+    'STRICT RULES:\n' +
+    '1. SPHERE with national flag pattern\n' +
+    '2. Eyes: ONLY white ovals with black dots. NO iris, NO anime eyes\n' +
+    '3. NO arms, NO legs, NO hands, NO mouth\n' +
+    '4. Thick black outline, flat colors\n' +
+    '5. Plain white background\n\n' +
+    'Character: ' + masterPrompt + '\n\n' +
+    'NO TEXT, NO WORDS.';
+
+  const IMAGE_MODELS = ['gemini-2.5-flash-image', 'gemini-3.1-flash-image-preview'];
+
+  for (const model of IMAGE_MODELS) {
+    try {
+      const response = await genAI.models.generateContent({
+        model,
+        contents: prompt,
+        config: { responseModalities: ['TEXT', 'IMAGE'] },
+      });
+
+      const parts = response.candidates?.[0]?.content?.parts ?? [];
+      for (const part of parts) {
+        if (part.inlineData?.data) {
+          const mime = part.inlineData.mimeType ?? 'image/png';
+          return 'data:' + mime + ';base64,' + part.inlineData.data;
+        }
+      }
+    } catch (err) {
+      console.warn('[clientGenerateCharacterImage] ' + model + ' failed:', err);
+    }
+  }
+
+  throw new Error('캐릭터 이미지 생성 실패');
+}
+
+// ===== generateYouTubeSEO (브라우저) =====
+
+export async function clientGenerateSEO(
+  plan: EpisodePlan,
+  scenes: ScriptScene[]
+): Promise<YouTubeSEO> {
+  const ai = getAI();
+
+  const castSummary = plan.cast.map((c) => c.countryCode + ' (' + c.role + ')').join(', ');
+  const dialogueSummary = scenes
+    .flatMap((s) => s.dialogue.map((d) => d.speaker + ': ' + d.text))
+    .slice(0, 30)
+    .join('\n');
+
+  const prompt = '당신은 한국 컨트리볼 유튜브 쇼츠 SEO 전문가입니다.\n\n' +
+    '## 에피소드 정보\n제목: ' + plan.title + '\n줄거리: ' + plan.synopsis +
+    '\n출연진: ' + castSummary + '\n한국 하이라이트: ' + plan.koreaWinMoment +
+    '\n\n## 대본 요약\n' + dialogueSummary +
+    '\n\n## 생성 항목\n' +
+    '1. titles: 바이럴 제목 5개 (20~35자, 호기심 유발)\n' +
+    '2. description: 쇼츠 설명문 (500자 이내)\n' +
+    '3. tags: 태그 30개 (한국어 20 + 영어 10)\n' +
+    '4. thumbnailTexts: 썸네일 텍스트 3개 (15자 이내)\n' +
+    '5. hashtags: 해시태그 5개\n' +
+    '6. hookLine: 첫 1초 훅 멘트 (20자 이내)\n' +
+    '7. category: YouTube 카테고리\n\n' +
+    'JSON으로만 응답 (마크다운 없이):\n' +
+    '{"titles":[],"description":"","tags":[],"thumbnailTexts":[],"hashtags":[],"hookLine":"","category":""}';
+
+  const model = ai.getGenerativeModel({ model: 'gemini-2.5-flash' });
+  const result = await model.generateContent(prompt);
+  const text = result.response.text();
+
+  return parseJsonSafe<YouTubeSEO>(text, {
+    titles: [], description: '', tags: [], thumbnailTexts: [],
+    hashtags: [], hookLine: '', category: '',
   });
 }

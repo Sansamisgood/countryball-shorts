@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { TopicCandidate, UsedTopic, LOADING_MESSAGES } from '@/lib/types';
+import { clientFindTopics, clientFindSimilarTopics } from '@/lib/geminiClient';
 
 // ─── Category helpers ──────────────────────────────────────────────────────
 
@@ -505,21 +506,12 @@ export default function TopicDiscoveryPanel({ onTopicSelected, onError }: TopicD
       setError(null);
       try {
         const usedTitles = loadUsedTopics().map((u) => u.title);
-        const res = await fetch('/api/news', {
-          method: 'POST',
-          headers: buildHeaders(),
-          body: JSON.stringify({
-            page: nextPage,
-            keyword: keyword.trim() || undefined,
-            usedTopics: usedTitles,
-          }),
-        });
-
-        if (!res.ok) {
-          const data = await res.json().catch(() => ({}));
-          throw new Error(data.error ?? `서버 오류 (${res.status})`);
-        }
-        const raw: TopicCandidate[] = await res.json();
+        // 브라우저에서 직접 Gemini API 호출 (서버 타임아웃 우회)
+        const raw: TopicCandidate[] = await clientFindTopics(
+          nextPage,
+          keyword.trim() || undefined,
+          usedTitles
+        );
 
         setTopics((prev) => {
           const filtered = deduplicateTopics(
@@ -553,21 +545,11 @@ export default function TopicDiscoveryPanel({ onTopicSelected, onError }: TopicD
     setError(null);
     try {
       const usedTitles = loadUsedTopics().map((u) => u.title);
-      const res = await fetch('/api/news/similar', {
-        method: 'POST',
-        headers: buildHeaders(),
-        body: JSON.stringify({
-          topic: source.title,
-          page: nextPage,
-          usedTopics: usedTitles,
-        }),
-      });
-
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error ?? `서버 오류 (${res.status})`);
-      }
-      const raw: TopicCandidate[] = await res.json();
+      // 브라우저에서 직접 Gemini API 호출
+      const raw: TopicCandidate[] = await clientFindSimilarTopics(
+        source.title,
+        usedTitles
+      );
 
       setTopics((prev) => {
         const filtered = deduplicateTopics(

@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useRef } from 'react';
 import { EpisodePlan, ScriptScene, YouTubeSEO } from '@/lib/types';
+import { clientGenerateSEO } from '@/lib/geminiClient';
 
 // ── Props ────────────────────────────────────────────────────────────────────
 
@@ -160,26 +161,8 @@ export default function YouTubeSEOPanel({
     setSeoData(null);
 
     try {
-      const apiKey = localStorage.getItem('gemini_api_key') ?? undefined;
-
-      const res = await fetch('/api/seo', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(apiKey ? { 'x-api-key': apiKey } : {}),
-        },
-        body: JSON.stringify({
-          plan: episodePlan,
-          scenes: finalizedScenes,
-        }),
-      });
-
-      if (!res.ok) {
-        const errBody = await res.json().catch(() => ({ error: '서버 오류' }));
-        throw new Error(errBody.error ?? `HTTP ${res.status}`);
-      }
-
-      const data: YouTubeSEO = await res.json();
+      // 브라우저에서 직접 Gemini API 호출
+      const data = await clientGenerateSEO(episodePlan, finalizedScenes);
       setSeoData(data);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'SEO 생성 중 오류가 발생했습니다.';

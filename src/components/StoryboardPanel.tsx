@@ -13,6 +13,7 @@ import {
 import CountryBallIcon from '@/components/CountryBallIcon';
 import { downloadSceneAsWebM, exportAllScenesToZip } from '@/lib/videoExport';
 import { exportToCapcut } from '@/lib/capcutExport';
+import { clientGenerateSceneImage, clientGenerateCharacterImage } from '@/lib/geminiClient';
 import { generateTTSUrl, getVoiceIdForCountry } from '@/lib/tts';
 import { getGeminiVoiceLabelForCountry } from '@/lib/geminiTts';
 import { getSupertoneVoiceLabelForCountry } from '@/lib/supertoneTts';
@@ -764,26 +765,12 @@ export default function StoryboardPanel({
 
     try {
       const characterDescription = plan?.cast
-        .map((c) => `${c.countryCode}볼: ${c.personality}`)
+        .map((c) => c.countryCode + '볼: ' + c.personality)
         .join(', ') ?? '';
 
-      const res = await fetch('/api/scenario', {
-        method: 'POST',
-        headers: buildHeaders(),
-        body: JSON.stringify({ step: 'scene-image', scene, characterDescription }),
-      });
-
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error ?? `서버 오류 (${res.status})`);
-      }
-
-      const data = await res.json();
-      if (data.imageUrl) {
-        setSceneImages((prev) => ({ ...prev, [scene.sceneNumber]: data.imageUrl }));
-      } else {
-        throw new Error('이미지 URL이 반환되지 않았습니다.');
-      }
+      // 브라우저에서 직접 Gemini API 호출
+      const imageUrl = await clientGenerateSceneImage(scene, characterDescription);
+      setSceneImages((prev) => ({ ...prev, [scene.sceneNumber]: imageUrl }));
     } catch (err) {
       const msg = err instanceof Error ? err.message : '이미지 생성 실패';
       setImageErrors((prev) => ({ ...prev, [scene.sceneNumber]: msg }));
@@ -995,23 +982,11 @@ export default function StoryboardPanel({
   const handleGenerateCharacterImage = async (countryCode: string, masterPrompt: string) => {
     setGeneratingCharacters((prev) => new Set(prev).add(countryCode));
     try {
-      const res = await fetch('/api/scenario', {
-        method: 'POST',
-        headers: buildHeaders(),
-        body: JSON.stringify({ step: 'character-image', countryCode, masterPrompt }),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error ?? `서버 오류 (${res.status})`);
-      }
-      const data = await res.json();
-      if (data.imageUrl) {
-        setCharacterProfiles((prev) =>
-          prev.map((c) => (c.countryCode === countryCode ? { ...c, baseImageUrl: data.imageUrl } : c))
-        );
-      } else {
-        throw new Error('이미지 URL이 반환되지 않았습니다.');
-      }
+      // 브라우저에서 직접 Gemini API 호출
+      const imageUrl = await clientGenerateCharacterImage(masterPrompt);
+      setCharacterProfiles((prev) =>
+        prev.map((c) => (c.countryCode === countryCode ? { ...c, baseImageUrl: imageUrl } : c))
+      );
     } catch (err) {
       const msg = err instanceof Error ? err.message : '캐릭터 이미지 생성 실패';
       onError?.(msg);

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { TopicCandidate, EpisodePlan, CastMember, CastPosition, LOADING_MESSAGES } from '@/lib/types';
-import { clientGeneratePlan } from '@/lib/geminiClient';
+import { clientGeneratePlan, clientGenerateCharacterImage } from '@/lib/geminiClient';
 import CountryBallIcon from '@/components/CountryBallIcon';
 
 // ─── Loading spinner ───────────────────────────────────────────────────────
@@ -403,28 +403,11 @@ export default function PlanningCastingPanel({
     });
 
     try {
-      const masterPrompt = `${member.countryCode}볼 (${member.role}): ${member.personality}. 해당 국기 패턴의 구체 형태, 눈과 표정만으로 캐릭터 표현, 컨트리볼 스타일.`;
+      const masterPrompt = member.countryCode + '볼 (' + member.role + '): ' + member.personality + '. 해당 국기 패턴의 구체 형태, 눈과 표정만으로 캐릭터 표현, 컨트리볼 스타일.';
 
-      const res = await fetch('/api/scenario', {
-        method: 'POST',
-        headers: buildHeaders(),
-        body: JSON.stringify({ step: 'character-image', masterPrompt }),
-      });
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err?.error ?? `서버 오류 (${res.status})`);
-      }
-
-      const data: { imageUrl: string } = await res.json();
-      if (data.imageUrl) {
-        setImageUrls((prev) => ({ ...prev, [key]: data.imageUrl }));
-      } else {
-        setImageErrors((prev) => ({
-          ...prev,
-          [key]: '이미지 생성 기능이 아직 구현 중입니다.',
-        }));
-      }
+      // 브라우저에서 직접 Gemini API 호출
+      const imageUrl = await clientGenerateCharacterImage(masterPrompt);
+      setImageUrls((prev) => ({ ...prev, [key]: imageUrl }));
     } catch (e) {
       setImageErrors((prev) => ({
         ...prev,
