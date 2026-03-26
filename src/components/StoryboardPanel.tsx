@@ -15,8 +15,7 @@ import { downloadSceneAsWebM, exportAllScenesToZip } from '@/lib/videoExport';
 import { exportToCapcut } from '@/lib/capcutExport';
 import { clientGenerateSceneImage, clientGenerateCharacterImage } from '@/lib/geminiClient';
 import { generateTTSUrl, getVoiceIdForCountry } from '@/lib/tts';
-import { getGeminiVoiceLabelForCountry } from '@/lib/geminiTts';
-import { getSupertoneVoiceLabelForCountry } from '@/lib/supertoneTts';
+import { getGeminiVoiceLabelForCountry, getSupertoneVoiceLabelForCountry } from '@/lib/voiceMappings';
 import type { TtsEngine } from '@/components/SettingsPanel';
 
 // ── TTS 엔진 설정 읽기 유틸리티 ──────────────────────────────────────────────
