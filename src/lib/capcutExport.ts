@@ -8,7 +8,6 @@
  * 씬(ScriptScene) + 스토리보드 이미지 → 비디오/자막 트랙 구성
  */
 
-import JSZip from 'jszip';
 import type { ScriptScene, DialogueLine, EpisodePlan } from './types';
 
 // ============================================================
@@ -129,6 +128,8 @@ export async function exportToCapcut(
 ): Promise<void> {
   const opts: CapcutExportOptions = { ...DEFAULT_OPTIONS, ...options };
 
+  const JSZipModule = await import('jszip');
+  const JSZip = JSZipModule.default;
   const zip = new JSZip();
   const mediaFolder = zip.folder('media');
   const now = Math.floor(Date.now() / 1000);
