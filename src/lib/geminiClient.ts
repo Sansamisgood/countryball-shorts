@@ -313,7 +313,7 @@ export async function clientFindTopics(
     '[{"title":"소재 제목","oneLiner":"한 줄 설명","keyFacts":["팩트1","팩트2"],"countriesInvolved":["KR","US"],"koreaAngle":"한국 각도","humorPotential":"유머 포인트","sourceHint":"출처"}]';
 
   // Google Search grounding은 새 SDK(@google/genai) 필요
-  const { GoogleGenAI } = await import('@google/genai');
+  const { GoogleGenAI } = await import('@google/genai/web');
   const genAI = new GoogleGenAI({ apiKey });
 
   const resp = await genAI.models.generateContent({
@@ -360,7 +360,7 @@ export async function clientGenerateSceneImage(
   characterDescription: string
 ): Promise<string> {
   const apiKey = getApiKey();
-  const { GoogleGenAI } = await import('@google/genai');
+  const { GoogleGenAI } = await import('@google/genai/web');
   const genAI = new GoogleGenAI({ apiKey });
 
   const primaryLine = scene.dialogue[0];
@@ -416,7 +416,7 @@ export async function clientGenerateCharacterImage(
   masterPrompt: string
 ): Promise<string> {
   const apiKey = getApiKey();
-  const { GoogleGenAI } = await import('@google/genai');
+  const { GoogleGenAI } = await import('@google/genai/web');
   const genAI = new GoogleGenAI({ apiKey });
 
   const prompt = 'Draw a classic Polandball character. Simple meme style.\n\n' +
