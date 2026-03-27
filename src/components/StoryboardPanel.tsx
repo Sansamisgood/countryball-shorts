@@ -276,8 +276,9 @@ function SceneCard({
     }
   };
 
+  const dialogue = Array.isArray(scene.dialogue) ? scene.dialogue : [];
   const uniqueSpeakers = Array.from(
-    new Map(scene.dialogue.map((line) => [line.speaker, line.emotion])).entries()
+    new Map(dialogue.map((line) => [line.speaker, line.emotion])).entries()
   );
 
   return (
@@ -370,7 +371,7 @@ function SceneCard({
       )}
 
       {/* Dialogue Lines */}
-      {scene.dialogue.length > 0 && (
+      {dialogue.length > 0 && (
         <div className="space-y-2">
           <span
             className="text-xs font-semibold uppercase tracking-wider"
@@ -379,7 +380,7 @@ function SceneCard({
             대사
           </span>
           <div className="space-y-2">
-            {scene.dialogue.map((line, i) => {
+            {dialogue.map((line, i) => {
               const lineKey = `${scene.sceneNumber}-${line.speaker}-${i}`;
               const isThisLinePlaying = playingLineKey === lineKey;
               const isThisLineLoading = loadingTtsLineKey === lineKey;
@@ -704,7 +705,18 @@ export default function StoryboardPanel({
   onBack,
   onError,
 }: StoryboardPanelProps) {
-  const scenes = scenesProp ?? finalizedScenes ?? [];
+  const rawScenes = scenesProp ?? finalizedScenes ?? [];
+  // 방어: dialogue가 없거나 불완전한 씬 데이터를 안전하게 정규화
+  const scenes = rawScenes.map((s) => ({
+    ...s,
+    dialogue: Array.isArray(s.dialogue) ? s.dialogue : [],
+    sceneNumber: s.sceneNumber ?? 0,
+    sceneType: s.sceneType ?? 'DIALOGUE',
+    composition: s.composition ?? 'TWO_SHOT',
+    setting: s.setting ?? '',
+    directorNote: s.directorNote ?? '',
+    durationSec: s.durationSec ?? 3,
+  }));
   const plan = planProp ?? episodePlan ?? null;
   const topic = topicProp ?? selectedTopic ?? null;
 
