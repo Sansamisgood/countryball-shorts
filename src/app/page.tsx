@@ -1,14 +1,55 @@
 'use client';
 
 import { useState, useCallback, useEffect, useRef } from 'react';
+import dynamic from 'next/dynamic';
 import { Step, TopicCandidate, EpisodePlan, ScriptScene, YouTubeSEO, ProjectData } from '@/lib/types';
 import StepIndicator from '@/components/StepIndicator';
+import ErrorBoundary from '@/components/ErrorBoundary';
+import SettingsPanel from '@/components/SettingsPanel';
+
+// Lightweight panels — static import is fine
 import TopicDiscoveryPanel from '@/components/TopicDiscoveryPanel';
 import PlanningCastingPanel from '@/components/PlanningCastingPanel';
-import ScriptWritingPanel from '@/components/ScriptWritingPanel';
-import StoryboardPanel from '@/components/StoryboardPanel';
-import YouTubeSEOPanel from '@/components/YouTubeSEOPanel';
-import SettingsPanel from '@/components/SettingsPanel';
+
+// Heavy panels — dynamic import to isolate chunk loading failures
+const ScriptWritingPanel = dynamic(() => import('@/components/ScriptWritingPanel'), {
+  loading: () => <PanelLoadingFallback label="대본 작성 패널" />,
+});
+const StoryboardPanel = dynamic(() => import('@/components/StoryboardPanel'), {
+  loading: () => <PanelLoadingFallback label="스토리보드 패널" />,
+});
+const YouTubeSEOPanel = dynamic(() => import('@/components/YouTubeSEOPanel'), {
+  loading: () => <PanelLoadingFallback label="SEO 패널" />,
+});
+
+function PanelLoadingFallback({ label }: { label: string }) {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '3rem',
+        color: 'var(--text-secondary)',
+        fontSize: '0.875rem',
+      }}
+    >
+      <svg
+        width="20"
+        height="20"
+        viewBox="0 0 24 24"
+        fill="none"
+        aria-hidden
+        className="animate-spin"
+        style={{ marginRight: '0.5rem' }}
+      >
+        <circle cx="12" cy="12" r="10" stroke="rgba(233,69,96,0.3)" strokeWidth="3" />
+        <path d="M12 2a10 10 0 0 1 10 10" stroke="var(--accent)" strokeWidth="3" strokeLinecap="round" />
+      </svg>
+      {label} 로딩 중...
+    </div>
+  );
+}
 
 // ─── Initial / reset values ──────────────────────────────────────────────────
 const INITIAL_STEP = Step.TOPIC_DISCOVERY;
@@ -421,7 +462,11 @@ export default function HomePage() {
 
       {/* ── Main content ────────────────────────────────────────────────────── */}
       <main className="flex-1 w-full max-w-5xl mx-auto px-4 py-8">
-        {renderPanel()}
+        <ErrorBoundary
+          onError={(err) => setError(`패널 오류: ${err.message}`)}
+        >
+          {renderPanel()}
+        </ErrorBoundary>
       </main>
 
       {/* ── Footer ─────────────────────────────────────────────────────────── */}

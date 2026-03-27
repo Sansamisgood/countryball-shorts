@@ -15,6 +15,19 @@ function getApiKey(): string {
   return key;
 }
 
+/** Dynamic import with retry for chunk load resilience */
+async function importGenAIWeb(): Promise<typeof import('@google/genai/web')> {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      return await import('@google/genai/web');
+    } catch (err) {
+      if (attempt === 2) throw err;
+      await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
+    }
+  }
+  throw new Error('모듈 로드 실패: @google/genai/web');
+}
+
 function getAI(): GoogleGenerativeAI {
   return new GoogleGenerativeAI(getApiKey());
 }
@@ -334,7 +347,7 @@ export async function clientFindTopics(
     '[{"title":"소재 제목","oneLiner":"한 줄 설명","keyFacts":["팩트1","팩트2"],"countriesInvolved":["KR","US"],"koreaAngle":"한국 각도","humorPotential":"유머 포인트","sourceHint":"출처"}]';
 
   // Google Search grounding은 새 SDK(@google/genai) 필요
-  const { GoogleGenAI } = await import('@google/genai/web');
+  const { GoogleGenAI } = await importGenAIWeb();
   const genAI = new GoogleGenAI({ apiKey });
 
   const resp = await genAI.models.generateContent({
@@ -381,7 +394,7 @@ export async function clientGenerateSceneImage(
   characterDescription: string
 ): Promise<string> {
   const apiKey = getApiKey();
-  const { GoogleGenAI } = await import('@google/genai/web');
+  const { GoogleGenAI } = await importGenAIWeb();
   const genAI = new GoogleGenAI({ apiKey });
 
   const primaryLine = scene.dialogue[0];
@@ -437,7 +450,7 @@ export async function clientGenerateCharacterImage(
   masterPrompt: string
 ): Promise<string> {
   const apiKey = getApiKey();
-  const { GoogleGenAI } = await import('@google/genai/web');
+  const { GoogleGenAI } = await importGenAIWeb();
   const genAI = new GoogleGenAI({ apiKey });
 
   const prompt = 'Draw a classic Polandball character. Simple meme style.\n\n' +
