@@ -707,16 +707,29 @@ export default function StoryboardPanel({
 }: StoryboardPanelProps) {
   const rawScenes = scenesProp ?? finalizedScenes ?? [];
   // 방어: dialogue가 없거나 불완전한 씬 데이터를 안전하게 정규화
-  const scenes = rawScenes.map((s) => ({
-    ...s,
-    dialogue: Array.isArray(s.dialogue) ? s.dialogue : [],
-    sceneNumber: s.sceneNumber ?? 0,
-    sceneType: s.sceneType ?? 'DIALOGUE',
-    composition: s.composition ?? 'TWO_SHOT',
-    setting: s.setting ?? '',
-    directorNote: s.directorNote ?? '',
-    durationSec: s.durationSec ?? 3,
-  }));
+  const scenes = (Array.isArray(rawScenes) ? rawScenes : []).map((s) => {
+    if (!s || typeof s !== 'object') return {
+      sceneNumber: 0, sceneType: 'DIALOGUE' as const, composition: 'TWO_SHOT' as const,
+      setting: '', dialogue: [], directorNote: '', durationSec: 3,
+    };
+    const rawDialogue = Array.isArray(s.dialogue) ? s.dialogue : [];
+    return {
+      ...s,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      dialogue: rawDialogue.map((d: any) => ({
+        speaker: String(d?.speaker ?? 'KR'),
+        text: String(d?.text ?? ''),
+        emotion: String(d?.emotion ?? 'NEUTRAL') as EmotionType,
+        animation: String(d?.animation ?? 'BOUNCE') as AnimationStyle,
+      })),
+      sceneNumber: s.sceneNumber ?? 0,
+      sceneType: s.sceneType ?? 'DIALOGUE',
+      composition: s.composition ?? 'TWO_SHOT',
+      setting: s.setting ?? '',
+      directorNote: s.directorNote ?? '',
+      durationSec: s.durationSec ?? 3,
+    };
+  });
   const plan = planProp ?? episodePlan ?? null;
   const topic = topicProp ?? selectedTopic ?? null;
 
@@ -936,6 +949,42 @@ export default function StoryboardPanel({
     }
   };
 
+  // 대본 텍스트 내보내기 (Script Export as .txt)
+  const handleExportScript = () => {
+    const lines: string[] = [];
+    const title = plan?.title ?? '컨트리볼 쇼츠';
+    lines.push(`# ${title}`);
+    lines.push(`# 생성일: ${new Date().toLocaleDateString('ko-KR')}`);
+    lines.push('');
+
+    for (const scene of scenes) {
+      const typeLabel = SCENE_TYPE_LABELS[scene.sceneType] ?? scene.sceneType;
+      lines.push(`[씬 ${scene.sceneNumber} - ${typeLabel}]`);
+      if (scene.setting) lines.push(`(장소: ${scene.setting})`);
+      if (scene.directorNote) lines.push(`(연출: ${scene.directorNote})`);
+      lines.push('');
+
+      const dialogue = Array.isArray(scene.dialogue) ? scene.dialogue : [];
+      for (const d of dialogue) {
+        const emotionLabel = EMOTION_LABELS[d.emotion as EmotionType] ?? d.emotion;
+        lines.push(`${d.speaker}볼: "${d.text}" {${emotionLabel}}`);
+      }
+      lines.push('');
+      lines.push('---');
+      lines.push('');
+    }
+
+    const text = lines.join('\n');
+    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const safeTitle = (plan?.title ?? 'script').replace(/[^\w가-힣\s]/g, '').trim().replace(/\s+/g, '_');
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `대본_${safeTitle || 'script'}_${Date.now()}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   // JSON export (includes images for restoration)
   const handleExportJson = () => {
     const exportData = {
@@ -1083,6 +1132,23 @@ export default function StoryboardPanel({
             >
               {isBatchGenerating ? <SpinnerIcon /> : <span aria-hidden>🎨</span>}
               {batchProgress ?? '전체 이미지 일괄 생성'}
+            </button>
+
+            {/* Script text export */}
+            <button
+              type="button"
+              className="flex items-center gap-2 text-sm py-2.5 px-4 rounded-xl font-semibold transition-colors"
+              onClick={handleExportScript}
+              disabled={scenes.length === 0}
+              style={{
+                background: 'rgba(168,85,247,0.12)',
+                border: '1px solid rgba(168,85,247,0.3)',
+                color: '#d8b4fe',
+                cursor: scenes.length === 0 ? 'not-allowed' : 'pointer',
+                opacity: scenes.length === 0 ? 0.5 : 1,
+              }}
+            >
+              <span aria-hidden>📝</span> 대본 내보내기
             </button>
 
             {/* JSON export */}
@@ -1280,6 +1346,21 @@ export default function StoryboardPanel({
       {/* Bottom Export Area */}
       {scenes.length > 0 && (
         <div className="flex flex-wrap justify-center gap-3 pb-6">
+          {/* Script text export (bottom) */}
+          <button
+            type="button"
+            className="flex items-center gap-2 text-base px-8 py-3 rounded-xl font-bold transition-colors"
+            onClick={handleExportScript}
+            style={{
+              background: 'rgba(168,85,247,0.15)',
+              border: '1px solid rgba(168,85,247,0.35)',
+              color: '#d8b4fe',
+              cursor: 'pointer',
+            }}
+          >
+            <span aria-hidden>📝</span> 대본 내보내기
+          </button>
+
           <button
             type="button"
             className="btn-primary flex items-center gap-2 text-base px-8 py-3"

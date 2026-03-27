@@ -232,25 +232,34 @@ ${rawScript}
   const result = await model.generateContent(prompt);
   const text = result.response.text();
 
-  const raw = parseJsonSafe<ScriptScene[]>(text, []);
-  return raw.map(sanitizeScene).filter((s) => s.dialogue.length > 0);
+  let raw = parseJsonSafe<ScriptScene[] | Record<string, unknown>>(text, []);
+  // Gemini가 {scenes: [...]} 형태로 반환하는 경우 처리
+  if (raw && !Array.isArray(raw) && typeof raw === 'object') {
+    const obj = raw as Record<string, unknown>;
+    const arr = obj.scenes ?? obj.data ?? obj.result ?? obj.storyboard;
+    raw = Array.isArray(arr) ? arr : [];
+  }
+  if (!Array.isArray(raw)) raw = [];
+  return (raw as Partial<ScriptScene>[]).map(sanitizeScene).filter((s) => s.dialogue.length > 0);
 }
 
 /** Gemini가 불완전한 JSON을 반환할 수 있으므로 필수 필드에 기본값 보장 */
 function sanitizeScene(scene: Partial<ScriptScene>, idx: number): ScriptScene {
+  const rawDialogue = Array.isArray(scene.dialogue) ? scene.dialogue : [];
   return {
     sceneNumber: scene.sceneNumber ?? idx + 1,
     sceneType: scene.sceneType ?? 'DIALOGUE',
     composition: scene.composition ?? 'TWO_SHOT',
     setting: scene.setting ?? '',
-    dialogue: Array.isArray(scene.dialogue)
-      ? scene.dialogue.map((d) => ({
-          speaker: d.speaker ?? 'KR',
-          text: d.text ?? '',
-          emotion: d.emotion ?? 'NEUTRAL',
-          animation: d.animation ?? 'BOUNCE',
-        }))
-      : [],
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    dialogue: rawDialogue
+      .filter((d: any) => d != null && typeof d === 'object')
+      .map((d: any) => ({
+        speaker: String(d.speaker ?? 'KR'),
+        text: String(d.text ?? ''),
+        emotion: (d.emotion as ScriptScene['dialogue'][0]['emotion']) ?? 'NEUTRAL',
+        animation: (d.animation as ScriptScene['dialogue'][0]['animation']) ?? 'BOUNCE',
+      })),
     directorNote: scene.directorNote ?? '',
     durationSec: scene.durationSec ?? 3,
   };
