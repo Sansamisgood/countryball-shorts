@@ -493,9 +493,9 @@ function AnimatedMouth({
   isTalking: boolean;
 }) {
   const frames: MouthFrame[] =
-    style === 'GEN_SWAP'
+    (style === 'GEN_SWAP'
       ? CLEAN_MOUTH_FRAMES[emotion]
-      : SKETCHY_MOUTH_FRAMES[emotion];
+      : SKETCHY_MOUTH_FRAMES[emotion]) ?? SKETCHY_MOUTH_FRAMES.NEUTRAL;
 
   const [frameIndex, setFrameIndex] = useState(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
