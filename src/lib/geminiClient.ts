@@ -219,7 +219,28 @@ ${rawScript}
   const result = await model.generateContent(prompt);
   const text = result.response.text();
 
-  return parseJsonSafe<ScriptScene[]>(text, []);
+  const raw = parseJsonSafe<ScriptScene[]>(text, []);
+  return raw.map(sanitizeScene).filter((s) => s.dialogue.length > 0);
+}
+
+/** Gemini가 불완전한 JSON을 반환할 수 있으므로 필수 필드에 기본값 보장 */
+function sanitizeScene(scene: Partial<ScriptScene>, idx: number): ScriptScene {
+  return {
+    sceneNumber: scene.sceneNumber ?? idx + 1,
+    sceneType: scene.sceneType ?? 'DIALOGUE',
+    composition: scene.composition ?? 'TWO_SHOT',
+    setting: scene.setting ?? '',
+    dialogue: Array.isArray(scene.dialogue)
+      ? scene.dialogue.map((d) => ({
+          speaker: d.speaker ?? 'KR',
+          text: d.text ?? '',
+          emotion: d.emotion ?? 'NEUTRAL',
+          animation: d.animation ?? 'BOUNCE',
+        }))
+      : [],
+    directorNote: scene.directorNote ?? '',
+    durationSec: scene.durationSec ?? 3,
+  };
 }
 
 // ===== generateEpisodePlan (브라우저) =====
