@@ -358,7 +358,7 @@ export async function exportSceneToWebM(options: ExportSceneOptions): Promise<Bl
 
     recorder.start(100); // 100ms 간격으로 데이터 청크 수집
 
-    const timings = calculateDialogueTimings(scene.dialogue, duration);
+    const timings = calculateDialogueTimings(Array.isArray(scene.dialogue) ? scene.dialogue : [], duration);
     let elapsed = 0;
     let lastTimestamp = performance.now();
 

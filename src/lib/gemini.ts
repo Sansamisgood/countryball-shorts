@@ -647,7 +647,8 @@ export async function generateImageForScene(
 ): Promise<{ imageUrl: string }> {
   const { generateSceneImage } = await import('./imageGen');
 
-  const primaryLine: DialogueLine | undefined = scene.dialogue[0];
+  const safeDialogue = Array.isArray(scene.dialogue) ? scene.dialogue : [];
+  const primaryLine: DialogueLine | undefined = safeDialogue[0];
   const speaker = primaryLine?.speaker ?? 'KR';
   const emotion = (primaryLine?.emotion ?? 'NEUTRAL') as EmotionType;
   const visualCue = scene.setting ?? '';
@@ -683,7 +684,7 @@ export async function generateYouTubeSEO(
 
   const dialogueSummary = scenes
     .flatMap((s) =>
-      s.dialogue.map((d) => `${d.speaker}: ${d.text}`)
+      (Array.isArray(s.dialogue) ? s.dialogue : []).map((d) => `${d.speaker}: ${d.text}`)
     )
     .slice(0, 30)
     .join("\n");

@@ -166,7 +166,8 @@ export async function exportToCapcut(
     const imageUrl = storyboardImages.get(scene.sceneNumber);
 
     // 대사 텍스트 전체 합치기 (재생 시간 추정용)
-    const allDialogueText = scene.dialogue
+    const safeDialogue = Array.isArray(scene.dialogue) ? scene.dialogue : [];
+    const allDialogueText = safeDialogue
       .map((d: DialogueLine) => `${d.speaker}: ${d.text}`)
       .join(' ');
 
@@ -322,11 +323,12 @@ export async function exportToCapcut(
     }
 
     // ---- 자막 세그먼트 ----
-    if (scene.dialogue.length > 0) {
-      const lineDurationMicro = Math.floor(sceneDurationMicro / scene.dialogue.length);
+    const sceneDialogue = Array.isArray(scene.dialogue) ? scene.dialogue : [];
+    if (sceneDialogue.length > 0) {
+      const lineDurationMicro = Math.floor(sceneDurationMicro / sceneDialogue.length);
       let linePos = timelinePos;
 
-      for (const line of scene.dialogue) {
+      for (const line of sceneDialogue) {
         const lineText = `${line.speaker}: ${line.text}`;
         if (!lineText.trim()) {
           linePos += lineDurationMicro;
@@ -827,7 +829,7 @@ export function estimateTotalDuration(
 ): number {
   return scenes.reduce((total, scene) => {
     if (scene.durationSec > 0) return total + scene.durationSec;
-    const allText = scene.dialogue.map((d) => d.text).join(' ');
+    const allText = (Array.isArray(scene.dialogue) ? scene.dialogue : []).map((d) => d.text).join(' ');
     return total + (allText.trim() ? estimateDuration(allText) : fallbackSec);
   }, 0);
 }

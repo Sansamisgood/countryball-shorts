@@ -406,7 +406,8 @@ export async function clientGenerateSceneImage(
   const { GoogleGenAI } = await importGenAIWeb();
   const genAI = new GoogleGenAI({ apiKey });
 
-  const primaryLine = scene.dialogue[0];
+  const safeDialogue = Array.isArray(scene.dialogue) ? scene.dialogue : [];
+  const primaryLine = safeDialogue[0];
   const speaker = primaryLine?.speaker ?? 'KR';
   const emotion = primaryLine?.emotion ?? 'NEUTRAL';
 
@@ -507,7 +508,7 @@ export async function clientGenerateSEO(
 
   const castSummary = plan.cast.map((c) => c.countryCode + ' (' + c.role + ')').join(', ');
   const dialogueSummary = scenes
-    .flatMap((s) => s.dialogue.map((d) => d.speaker + ': ' + d.text))
+    .flatMap((s) => (Array.isArray(s.dialogue) ? s.dialogue : []).map((d) => d.speaker + ': ' + d.text))
     .slice(0, 30)
     .join('\n');
 
